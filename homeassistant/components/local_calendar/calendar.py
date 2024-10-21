@@ -79,7 +79,31 @@ async def async_setup_entry(
     async_add_entities([entity], True)
 
 
-class LocalCalendarEntity(CalendarEntity):
+class BaseClass:
+    """Base Class for these calendar entities, contains shared code."""
+
+    def __init__(self, calendar: Calendar) -> None:
+        """Initialize variables."""
+        self._calendar = calendar
+        self._event: CalendarEvent | None = None
+
+    @property
+    def event(self) -> CalendarEvent | None:
+        """Return the next upcoming event."""
+        return self._event
+
+    async def async_get_events(
+        self, hass: HomeAssistant, start_date: datetime, end_date: datetime
+    ) -> list[CalendarEvent]:
+        """Get all events in a specific time frame."""
+        return _return_events(self._calendar, start_date, end_date)
+
+    async def async_update(self) -> None:
+        """Update entity state with the next upcoming event."""
+        self._event = _return_next_event(self._calendar)
+
+
+class LocalCalendarEntity(BaseClass, CalendarEntity):
     """A calendar entity backed by a local iCalendar file."""
 
     _attr_has_entity_name = True
@@ -98,25 +122,9 @@ class LocalCalendarEntity(CalendarEntity):
     ) -> None:
         """Initialize LocalCalendarEntity."""
         self._store = store
-        self._calendar = calendar
-        self._event: CalendarEvent | None = None
         self._attr_name = name
         self._attr_unique_id = unique_id
-
-    @property
-    def event(self) -> CalendarEvent | None:
-        """Return the next upcoming event."""
-        return self._event
-
-    async def async_get_events(
-        self, hass: HomeAssistant, start_date: datetime, end_date: datetime
-    ) -> list[CalendarEvent]:
-        """Get all events in a specific time frame."""
-        return _return_events(self._calendar, start_date, end_date)
-
-    async def async_update(self) -> None:
-        """Update entity state with the next upcoming event."""
-        self._event = _return_next_event(self._calendar)
+        super().__init__(calendar)
 
     async def _async_store(self) -> None:
         """Persist the calendar to disk."""
@@ -229,7 +237,7 @@ def _get_calendar_event(event: Event) -> CalendarEvent:
     )
 
 
-class IcsCalendarEntity(CalendarEntity):
+class IcsCalendarEntity(BaseClass, CalendarEntity):
     """A calendar entity backed by an .ics file on the network."""
 
     def __init__(
@@ -240,25 +248,9 @@ class IcsCalendarEntity(CalendarEntity):
         url: str,
     ) -> None:
         """Initialize IcsCalendarEntity."""
-        self._calendar = calendar
-        self._event: CalendarEvent | None = None
         self._attr_name = name
         self._attr_unique_id = unique_id
-
-    @property
-    def event(self) -> CalendarEvent | None:
-        """Return the next upcoming event."""
-        return self._event
-
-    async def async_get_events(
-        self, hass: HomeAssistant, start_date: datetime, end_date: datetime
-    ) -> list[CalendarEvent]:
-        """Get all events in a specific time frame."""
-        return _return_events(self._calendar, start_date, end_date)
-
-    async def async_update(self) -> None:
-        """Update entity state with the next upcoming event."""
-        self._event = _return_next_event(self._calendar)
+        super().__init__(calendar)
 
 
 def _return_next_event(_calendar: Calendar) -> CalendarEvent | None:
